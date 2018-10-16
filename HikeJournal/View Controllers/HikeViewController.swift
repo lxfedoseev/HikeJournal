@@ -50,6 +50,9 @@ class HikeViewController: UIViewController {
   override func viewDidLoad() {
     super.viewDidLoad()
     
+    let dropInteraction = UIDropInteraction(delegate: self)
+    view.addInteraction(dropInteraction)
+    
     imageViews = [leftImageView, rightImageView]
     startingMapRegion = mapView.region
     hikeNotesTextView.textDropDelegate = self
@@ -107,4 +110,36 @@ extension HikeViewController: UITextDropDelegate {
   func textDroppableView(_ textDroppableView: UIView & UITextDroppable, proposalForDrop drop: UITextDropRequest) -> UITextDropProposal {
     return UITextDropProposal(operation: .forbidden)
   }
+}
+
+extension HikeViewController: UIDropInteractionDelegate {
+    // 1
+    func dropInteraction(
+        _ interaction: UIDropInteraction,
+        canHandle session: UIDropSession) -> Bool {
+        return session.canLoadObjects(ofClass: Park.self)
+    }
+    // 2
+    func dropInteraction(_ interaction: UIDropInteraction,
+                         sessionDidUpdate session: UIDropSession)
+    -> UIDropProposal {
+    return UIDropProposal(operation: .copy)
+    
+    }
+    // 3
+    func dropInteraction(_ interaction: UIDropInteraction,
+                         performDrop session: UIDropSession) {
+        guard let dropItem = session.items.last else { return }
+        // 4
+        dropItem.itemProvider.loadObject(ofClass: Park.self) {
+            [weak self] object, _ in
+            guard let `self` = self else { return }
+            self.park = object as? Park
+            // 5
+            DispatchQueue.main.async {
+                self.displayPark()
+            }
+        }
+        
+    }
 }
