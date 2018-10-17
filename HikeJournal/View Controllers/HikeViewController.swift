@@ -46,12 +46,19 @@ class HikeViewController: UIViewController {
   var imageViews: [UIImageView]?
   
   var images: [UIImage] = []
+    
+    var progress: Progress?
+    var loadingView: LoadingView?
   
   override func viewDidLoad() {
     super.viewDidLoad()
     
     let dropInteraction = UIDropInteraction(delegate: self)
     view.addInteraction(dropInteraction)
+    
+    clearButton.isSpringLoaded = true
+    let dragInteraction = UIDragInteraction(delegate: self)
+    stackView.addInteraction(dragInteraction)
     
     imageViews = [leftImageView, rightImageView]
     startingMapRegion = mapView.region
@@ -130,16 +137,47 @@ extension HikeViewController: UIDropInteractionDelegate {
     func dropInteraction(_ interaction: UIDropInteraction,
                          performDrop session: UIDropSession) {
         guard let dropItem = session.items.last else { return }
-        // 4
-        dropItem.itemProvider.loadObject(ofClass: Park.self) {
-            [weak self] object, _ in
+        session.progressIndicatorStyle = .none
+        // 1
+        progress = dropItem.itemProvider.loadObject(ofClass: Park.self)
+        { [weak self] object, _ in
             guard let `self` = self else { return }
             self.park = object as? Park
-            // 5
             DispatchQueue.main.async {
                 self.displayPark()
+                // 2
+                self.loadingView?.removeFromSuperview()
+                self.loadingView = nil
             }
+            
         }
         
     }
+    
+    func dropInteraction(
+        _ interaction: UIDropInteraction,
+        item: UIDragItem,
+        willAnimateDropWith animator: UIDragAnimating) {
+        // 1
+        guard let progress = progress,
+            let interactionView = interaction.view else { return }
+        // 2
+        loadingView = LoadingView(interactionView.bounds,
+                                  progress: progress)
+        // 3
+        interactionView.addSubview(loadingView!)
+    }
+}
+
+extension HikeViewController: UIDragInteractionDelegate {
+    func dragInteraction(_ interaction: UIDragInteraction,
+                         itemsForBeginning session: UIDragSession)
+        -> [UIDragItem] {
+            guard let park = park else { return [] }
+            let provider =
+                NSItemProvider(object: NSString(string: park.name))
+            let dragItem = UIDragItem(itemProvider: provider)
+            return [dragItem]
+    }
+    
 }
